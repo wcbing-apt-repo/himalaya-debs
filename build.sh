@@ -1,50 +1,72 @@
 #!/bin/sh
+set -e
 
-PACKAGE="himalaya"
-REPO="pimalaya/himalaya"
+# Check and extract version number
+[ $# != 1 ] && echo "Usage:  $0 <latest_releases_tag>" && exit 1
+VERSION=$(echo "$1" | sed -n 's|[^0-9]*\([^_]*\).*|\1|p') && test "$VERSION"
 
-VERSION="$(cat tag)"
+PACKAGE=himalaya
+REPO=pimalaya/himalaya
 
-ARCH="amd64 arm64"
-AMD64_FILENAME="himalaya.x86_64-linux.tgz"
-ARM64_FILENAME="himalaya.aarch64-linux.tgz"
+ARCH_LIST="amd64 arm64"
+AMD64_FILENAME=himalaya.x86_64-linux.tgz
+ARM64_FILENAME=himalaya.aarch64-linux.tgz
 
-get_url_by_arch() {
-    case $1 in
-    "amd64") echo "https://github.com/$REPO/releases/latest/download/$AMD64_FILENAME" ;;
-    "arm64") echo "https://github.com/$REPO/releases/latest/download/$ARM64_FILENAME" ;;
-    esac
+prepare() {
+    mkdir -p output tmp
+    curl -fs https://api.github.com/repos/$REPO/releases/latest | jq -r '.body' | gzip > tmp/changelog.gz
 }
 
 build() {
-    # Prepare
-    BASE_DIR="$PACKAGE"_"$VERSION"-1_"$1"
-    cp -r templates "$BASE_DIR"
-    sed -i "s/Architecture: arch/Architecture: $1/" "$BASE_DIR/DEBIAN/control"
-    sed -i "s/Version: version/Version: $VERSION-1/" "$BASE_DIR/DEBIAN/control"
+    BASE_DIR="$PACKAGE"_"$ARCH" && rm -rf "$BASE_DIR"
+    install -D templates/copyright -t "$BASE_DIR/usr/share/doc/$PACKAGE"
+    install -D tmp/changelog.gz -t "$BASE_DIR/usr/share/doc/$PACKAGE"
+
     # Download and move file
-    curl https://api.github.com/repos/$REPO/releases/latest | jq -r '.body' > $BASE_DIR/usr/share/doc/$PACKAGE/CHANGELOG.md
-    curl -sLo "$PACKAGE-$VERSION-$1.tgz" "$(get_url_by_arch $1)"
-    tar -xzf "$PACKAGE-$VERSION-$1.tgz"
-    mv share/applications $BASE_DIR/usr/share/applications
-    mv share/man $BASE_DIR/usr/share/man
-    mkdir -p $BASE_DIR/usr/share/bash-completion/completions && mv share/completions/himalaya.bash $BASE_DIR/usr/share/bash-completion/completions
-    mkdir -p $BASE_DIR/usr/share/fish/completions && mv share/completions/himalaya.fish $BASE_DIR/usr/share/fish/completions
-    mkdir -p $BASE_DIR/usr/share/zsh/vendor-completions && mv share/completions/himalaya.zsh $BASE_DIR/usr/share/zsh/vendor-completions
-    mkdir -p $BASE_DIR/usr/share/elvish/lib && mv share/completions/himalaya.elvish $BASE_DIR/usr/share/elvish/lib/himalaya.elvish
-    # mv share/completions/himalaya.powershell $BASE_DIR/usr/share/
+    curl -fsLo "tmp/$PACKAGE-$ARCH.tgz" "$(get_url_by_arch "$ARCH")"
+    tar -xzf "tmp/$PACKAGE-$ARCH.tgz"
+    install -D -m 755 -t "$BASE_DIR/usr/bin" himalaya && rm himalaya
+
+    mv share/applications "$BASE_DIR"/usr/share/applications
+    mv share/man "$BASE_DIR"/usr/share/man
+    install -D share/completions/himalaya.bash -t "$BASE_DIR"/usr/share/bash-completion/completions
+    install -D share/completions/himalaya.fish -t "$BASE_DIR"/usr/share/fish/completions
+    install -D share/completions/himalaya.zsh -t "$BASE_DIR"/usr/share/zsh/vendor-completions
+    install -D share/completions/himalaya.elvish -t "$BASE_DIR"/usr/share/elvish/lib/himalaya.elvish
+    # install -D share/completions/himalaya.powershell "$BASE_DIR"/usr/share/
     rm -rf share
-    mv "$PACKAGE" "$BASE_DIR/usr/bin/$PACKAGE"
-    chmod 755 "$BASE_DIR/usr/bin/$PACKAGE"
-    # Build
-    dpkg-deb --build --root-owner-group -Z xz "$BASE_DIR"
+
+    # Package deb
+    mkdir -p "$BASE_DIR/DEBIAN"
+    SIZE=$(du -sk "$BASE_DIR"/usr | cut -f1)
+    echo "Package: $PACKAGE
+Version: $VERSION-1
+Architecture: $ARCH
+Installed-Size: $SIZE
+Maintainer: wcbing <i@wcbing.top>
+Section: mail
+Priority: optional
+Homepage: https://github.com/$REPO
+Description: CLI to manage emails, based on email-lib
+" > "$BASE_DIR/DEBIAN/control"
+
+    dpkg-deb -b --root-owner-group -Z xz "$BASE_DIR" output
 }
 
-for i in $ARCH; do
-    echo "Building $i package..."
-    build "$i"
+get_url_by_arch() {
+    DOWNLOAD_PREFIX="https://github.com/$REPO/releases/latest/download"
+    case $1 in
+    "amd64") echo "$DOWNLOAD_PREFIX/$AMD64_FILENAME" ;;
+    "arm64") echo "$DOWNLOAD_PREFIX/$ARM64_FILENAME" ;;
+    esac
+}
+
+prepare
+
+for ARCH in $ARCH_LIST; do
+    echo "Building $ARCH package..."
+    build
 done
 
 # Create repo files
-apt-ftparchive packages . > Packages
-apt-ftparchive release . > Release
+cd output && apt-ftparchive packages . > Packages && apt-ftparchive release . > Release
