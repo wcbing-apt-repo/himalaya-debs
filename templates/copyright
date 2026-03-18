@@ -1,12 +1,12 @@
 format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: himalaya
-Source: https://github.com/pimalaya/himalaya/releases
+Source: https://github.com/pimalaya/himalaya
 
 Files: *
 Copyright: (c) 2022-2024 soywod <clement.douin@posteo.net>
 License: MIT
 
-Files: DEBIAN/*
+Files: debian/*
 Copyright: 2025 wcbing <i@wcbing.top>
 License: MIT
 

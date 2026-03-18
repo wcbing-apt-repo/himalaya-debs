@@ -1,6 +1,6 @@
-自行打包的 [himalaya](https://github.com/pimalaya/himalaya)，适用于 Debian 或基于 Debian 的发行版。
+自行打包的 [himalaya](https://github.com/pimalaya/himalaya)，适用于基于 Debian 的发行版。
 
-Self-packaged [himalaya](https://github.com/pimalaya/himalaya), suitable for Debian and Debian-based distros.
+Self-packaged [himalaya](https://github.com/pimalaya/himalaya), suitable for Debian-based distro.
 
 
 ## Usage/用法
