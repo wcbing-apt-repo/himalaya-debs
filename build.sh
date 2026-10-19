@@ -27,13 +27,10 @@ build() {
     tar -xzf "tmp/$PACKAGE-$ARCH.tgz"
     install -D -m 755 -t "$BASE_DIR/usr/bin" himalaya && rm himalaya
 
-    mv share/applications "$BASE_DIR"/usr/share/applications
-    mv share/man "$BASE_DIR"/usr/share/man
+    mkdir -p "$BASE_DIR"/usr/share/man && mv share/man "$BASE_DIR"/usr/share/man/man1
     install -D share/completions/himalaya.bash -t "$BASE_DIR"/usr/share/bash-completion/completions
     install -D share/completions/himalaya.fish -t "$BASE_DIR"/usr/share/fish/completions
-    install -D share/completions/himalaya.zsh -t "$BASE_DIR"/usr/share/zsh/vendor-completions
-    install -D share/completions/himalaya.elvish -t "$BASE_DIR"/usr/share/elvish/lib/himalaya.elvish
-    # install -D share/completions/himalaya.powershell "$BASE_DIR"/usr/share/
+    install -D share/completions/himalaya.elv -t "$BASE_DIR"/usr/share/elvish/lib/himalaya.elv
     rm -rf share
 
     # Package deb
